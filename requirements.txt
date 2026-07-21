@@ -5,3 +5,5 @@ pydantic-settings
 motor
 pymongo
 httpx
+pytest
+pytest-cov

@@ -1,13 +1,13 @@
-# Quipux Earthquake Monitor
+﻿# Quipux Earthquake Monitor
 
-**Estado:** Bootstrap inicial
+**Estado:** Fase 3 â€” Modelo de dominio
 
 ## Requisitos
 
 - Docker
 - Docker Compose
 
-## Inicio rápido
+## Inicio rÃ¡pido
 
 ```bash
 cp .env.example .env
@@ -21,4 +21,13 @@ docker compose up --build
 | API | http://localhost:8000 |
 | Swagger | http://localhost:8000/docs |
 
+## Pruebas
+
+```bash
+docker compose build
+docker compose run --rm api pytest
+docker compose run --rm api pytest --cov=app --cov-report=term-missing
+```
+
 > La lógica de negocio (ingesta USGS, métricas, reportes) aún no está implementada.
+
