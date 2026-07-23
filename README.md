@@ -418,6 +418,69 @@ docker compose --profile debug run --rm airflow-cli pytest tests/airflow/ -q
 
 ---
 
+## Colección Postman
+
+`postman/quipux-earthquakes.postman_collection.json` contiene una colección Postman v2.1 con smoke tests, consultas paginadas con filtros y ordenamiento, y casos de validación HTTP 422. Todas las solicitudes usan la variable `{{baseUrl}}`.
+
+### Requisito previo — entorno en ejecución
+
+La colección requiere que la API esté disponible en `http://localhost:8000`. Iniciar el entorno antes de ejecutar las pruebas:
+
+```bash
+docker compose up -d --build
+```
+
+### Importar en Postman
+
+Abrir Postman → **Import** → seleccionar `postman/quipux-earthquakes.postman_collection.json`.
+
+Una vez importada, ejecutar con **Collection Runner** (botón ▶ junto al nombre de la colección). El runner ejecuta todos los requests en orden y muestra el resultado de cada script de prueba.
+
+### Ejecutar con Newman (línea de comandos)
+
+Newman es el runner CLI oficial de Postman. Requiere Node.js instalado previamente.
+
+Instalar Newman:
+
+```bash
+npm install -g newman
+```
+
+Ejecutar la colección:
+
+```bash
+newman run postman/quipux-earthquakes.postman_collection.json
+```
+
+Newman imprime un resumen de cada request con el resultado de los scripts de prueba. Los requests de la carpeta `04 - Validation Errors` deben devolver `HTTP 422`; Newman los marca como pasados si el script de prueba verifica ese código de estado.
+
+### Variables de colección
+
+| Variable        | Valor predeterminado        |
+|----------------|-----------------------------|
+| `baseUrl`      | `http://localhost:8000`     |
+| `page`         | `1`                         |
+| `pageSize`     | `5`                         |
+| `sort`         | `desc`                      |
+| `startTime`    | `2000-01-01T00:00:00Z`      |
+| `endTime`      | `2100-01-01T00:00:00Z`      |
+| `minMagnitude` | `0`                         |
+| `maxMagnitude` | `10`                        |
+
+### Carpetas y solicitudes
+
+| Carpeta                    | Solicitudes                                                                                              |
+|----------------------------|----------------------------------------------------------------------------------------------------------|
+| `00 - Smoke`               | Root, Health                                                                                             |
+| `01 - Earthquakes`         | List Earthquakes - Defaults, List Earthquakes - Pagination, List Earthquakes - Time Range and Ascending Sort, List Earthquakes - Magnitude Range |
+| `02 - Metrics`             | List Metrics - Defaults, List Metrics - Time Range and Ascending Sort                                   |
+| `03 - Reports`             | List Reports - Defaults, List Reports - Pagination, List Reports - Time Range and Ascending Sort         |
+| `04 - Validation Errors`   | Invalid Page, Page Size Above Maximum, Invalid Sort, Datetime Without Timezone, Inverted Time Range, Inverted Magnitude Range, Unknown Query Parameter |
+
+Todas las solicitudes son `GET`. Cada una incluye un script de prueba Postman que verifica el código de estado y la estructura de la respuesta.
+
+---
+
 ## Estructura del proyecto
 
 ```
@@ -466,6 +529,8 @@ quipux-earthquake-monitor/
 │   └── architecture.md
 ├── docker-compose.yml
 ├── Dockerfile
+├── postman/
+│   └── quipux-earthquakes.postman_collection.json
 ├── Dockerfile.airflow
 ├── .env.example
 ├── requirements.txt
@@ -619,4 +684,4 @@ docker compose exec -T airflow-api-server sh -lc 'cat "$AIRFLOW_HOME/simple_auth
 - **LocalExecutor**: suficiente para un DAG horario, pero no escala a múltiples workers Airflow. Migrar a CeleryExecutor o KubernetesExecutor si se agregan más DAGs concurrentes.
 - **Sin TLS**: las comunicaciones entre contenedores no usan HTTPS. En producción se debe terminar TLS en un reverse proxy.
 - **Retención de datos**: no existe política de expiración para colecciones de MongoDB. Implementar TTL indexes si el volumen de datos lo requiere.
-- **Colección Postman y diagrama de arquitectura visual**: pendientes como entregables futuros.
+- **Diagrama de arquitectura visual**: pendiente como entregable futuro. El documento `docs/architecture.md` cubre la arquitectura en formato textual.

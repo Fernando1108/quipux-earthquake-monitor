@@ -1,0 +1,1783 @@
+{
+  "info": {
+    "_postman_id": "52d3f14d-1f0e-42b5-bd2d-662aa3ca5c2a",
+    "name": "Quipux Earthquake Monitor API",
+    "description": "Functional test collection for the Quipux Earthquake Monitor API. It includes smoke tests, paginated queries with filters and sorting, response contract checks, and HTTP 422 validation scenarios. All requests use the {{baseUrl}} collection variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "page",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "pageSize",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "sort",
+      "value": "desc",
+      "type": "string"
+    },
+    {
+      "key": "startTime",
+      "value": "2000-01-01T00:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "endTime",
+      "value": "2100-01-01T00:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "minMagnitude",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "maxMagnitude",
+      "value": "10",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Smoke",
+      "description": "Basic availability checks for root and health endpoints.",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}",
+            "description": "Verifies that the API root endpoint is available and returns the application name. Expected response: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Root response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(\"message\");",
+                  "    pm.expect(json.message).to.eql(\"Quipux Earthquake Monitor\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Verifies the basic API health endpoint. Expected response: HTTP 200 with status equal to ok."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Health response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(\"status\");",
+                  "    pm.expect(json.status).to.eql(\"ok\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Earthquakes",
+      "description": "Listing, pagination, sorting and filtering for GET /earthquakes.",
+      "item": [
+        {
+          "name": "List Earthquakes - Defaults",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ]
+            },
+            "description": "Lists earthquakes using the API default pagination and descending sort settings. Expected response: HTTP 200 with the paginated earthquake contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Default pagination values are correct\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.page).to.eql(1);",
+                  "    pm.expect(json.page_size).to.eql(20);",
+                  "});",
+                  "",
+                  "pm.test(\"Earthquake item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"event_id\",",
+                  "            \"magnitude\",",
+                  "            \"location\",",
+                  "            \"latitude\",",
+                  "            \"longitude\",",
+                  "            \"depth\",",
+                  "            \"event_time\"",
+                  "        );",
+                  "",
+                  "        pm.expect(item.event_id).to.be.a(\"string\");",
+                  "        pm.expect(item.event_id.length).to.be.above(0);",
+                  "",
+                  "        pm.expect(",
+                  "            item.magnitude === null ||",
+                  "            typeof item.magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.location === null ||",
+                  "            typeof item.location === \"string\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.latitude).to.be.a(\"number\");",
+                  "        pm.expect(item.longitude).to.be.a(\"number\");",
+                  "        pm.expect(item.depth).to.be.a(\"number\");",
+                  "",
+                  "        pm.expect(",
+                  "            Number.isNaN(Date.parse(item.event_time))",
+                  "        ).to.eql(false);",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Earthquakes - Pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?page={{page}}&page_size={{pageSize}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}"
+                },
+                {
+                  "key": "page_size",
+                  "value": "{{pageSize}}"
+                }
+              ]
+            },
+            "description": "Lists earthquakes using the page and pageSize collection variables. Expected response: HTTP 200 with matching pagination metadata."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Pagination metadata matches collection variables\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.page).to.eql(Number(pm.collectionVariables.get(\"page\")));",
+                  "    pm.expect(json.page_size).to.eql(Number(pm.collectionVariables.get(\"pageSize\")));",
+                  "});",
+                  "",
+                  "pm.test(\"Earthquake item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"event_id\",",
+                  "            \"magnitude\",",
+                  "            \"location\",",
+                  "            \"latitude\",",
+                  "            \"longitude\",",
+                  "            \"depth\",",
+                  "            \"event_time\"",
+                  "        );",
+                  "",
+                  "        pm.expect(item.event_id).to.be.a(\"string\");",
+                  "        pm.expect(item.event_id.length).to.be.above(0);",
+                  "",
+                  "        pm.expect(",
+                  "            item.magnitude === null ||",
+                  "            typeof item.magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.location === null ||",
+                  "            typeof item.location === \"string\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.latitude).to.be.a(\"number\");",
+                  "        pm.expect(item.longitude).to.be.a(\"number\");",
+                  "        pm.expect(item.depth).to.be.a(\"number\");",
+                  "",
+                  "        pm.expect(",
+                  "            Number.isNaN(Date.parse(item.event_time))",
+                  "        ).to.eql(false);",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Earthquakes - Time Range and Ascending Sort",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?start_time={{startTime}}&end_time={{endTime}}&sort=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "start_time",
+                  "value": "{{startTime}}"
+                },
+                {
+                  "key": "end_time",
+                  "value": "{{endTime}}"
+                },
+                {
+                  "key": "sort",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Lists earthquakes inside the startTime and endTime range ordered by event_time ascending. Expected response: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Earthquake item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"event_id\",",
+                  "            \"magnitude\",",
+                  "            \"location\",",
+                  "            \"latitude\",",
+                  "            \"longitude\",",
+                  "            \"depth\",",
+                  "            \"event_time\"",
+                  "        );",
+                  "",
+                  "        pm.expect(item.event_id).to.be.a(\"string\");",
+                  "        pm.expect(item.event_id.length).to.be.above(0);",
+                  "",
+                  "        pm.expect(",
+                  "            item.magnitude === null ||",
+                  "            typeof item.magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.location === null ||",
+                  "            typeof item.location === \"string\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.latitude).to.be.a(\"number\");",
+                  "        pm.expect(item.longitude).to.be.a(\"number\");",
+                  "        pm.expect(item.depth).to.be.a(\"number\");",
+                  "",
+                  "        pm.expect(",
+                  "            Number.isNaN(Date.parse(item.event_time))",
+                  "        ).to.eql(false);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Items are within the configured time range\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const start = Date.parse(pm.collectionVariables.get(\"startTime\"));",
+                  "    const end = Date.parse(pm.collectionVariables.get(\"endTime\"));",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        const t = Date.parse(item.event_time);",
+                  "        pm.expect(t).to.be.at.least(start);",
+                  "        pm.expect(t).to.be.at.most(end);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Items are ordered ascending by event_time\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    if (json.items.length >= 2) {",
+                  "        for (var i = 1; i < json.items.length; i++) {",
+                  "            pm.expect(Date.parse(json.items[i].event_time))",
+                  "                .to.be.at.least(Date.parse(json.items[i - 1].event_time));",
+                  "        }",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Earthquakes - Magnitude Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?min_magnitude={{minMagnitude}}&max_magnitude={{maxMagnitude}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "min_magnitude",
+                  "value": "{{minMagnitude}}"
+                },
+                {
+                  "key": "max_magnitude",
+                  "value": "{{maxMagnitude}}"
+                }
+              ]
+            },
+            "description": "Lists earthquakes filtered by minMagnitude and maxMagnitude. Expected response: HTTP 200 with matching earthquake records when available."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Earthquake item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"event_id\",",
+                  "            \"magnitude\",",
+                  "            \"location\",",
+                  "            \"latitude\",",
+                  "            \"longitude\",",
+                  "            \"depth\",",
+                  "            \"event_time\"",
+                  "        );",
+                  "",
+                  "        pm.expect(item.event_id).to.be.a(\"string\");",
+                  "        pm.expect(item.event_id.length).to.be.above(0);",
+                  "",
+                  "        pm.expect(",
+                  "            item.magnitude === null ||",
+                  "            typeof item.magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.location === null ||",
+                  "            typeof item.location === \"string\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.latitude).to.be.a(\"number\");",
+                  "        pm.expect(item.longitude).to.be.a(\"number\");",
+                  "        pm.expect(item.depth).to.be.a(\"number\");",
+                  "",
+                  "        pm.expect(",
+                  "            Number.isNaN(Date.parse(item.event_time))",
+                  "        ).to.eql(false);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Non-null magnitudes are within the configured range\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const minMag = Number(pm.collectionVariables.get(\"minMagnitude\"));",
+                  "    const maxMag = Number(pm.collectionVariables.get(\"maxMagnitude\"));",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        if (item.magnitude !== null) {",
+                  "            pm.expect(item.magnitude).to.be.at.least(minMag);",
+                  "            pm.expect(item.magnitude).to.be.at.most(maxMag);",
+                  "        }",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Metrics",
+      "description": "Listing, pagination and filtering for GET /metrics.",
+      "item": [
+        {
+          "name": "List Metrics - Defaults",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Lists stored hourly metrics using default pagination and descending sort. Expected response: HTTP 200 with the paginated metric contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Default pagination values are correct\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.page).to.eql(1);",
+                  "    pm.expect(json.page_size).to.eql(20);",
+                  "});",
+                  "",
+                  "pm.test(\"Metric item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"window_start\",",
+                  "            \"window_end\",",
+                  "            \"earthquake_count\",",
+                  "            \"magnitude_count\",",
+                  "            \"magnitude_sum\",",
+                  "            \"average_magnitude\",",
+                  "            \"max_magnitude\",",
+                  "            \"magnitude_distribution\",",
+                  "            \"updated_at\"",
+                  "        );",
+                  "",
+                  "        pm.expect(Number.isNaN(Date.parse(item.window_start))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.window_end))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.updated_at))).to.eql(false);",
+                  "",
+                  "        pm.expect(Number.isInteger(item.earthquake_count)).to.eql(true);",
+                  "        pm.expect(item.earthquake_count).to.be.at.least(0);",
+                  "        pm.expect(Number.isInteger(item.magnitude_count)).to.eql(true);",
+                  "        pm.expect(item.magnitude_count).to.be.at.least(0);",
+                  "        pm.expect(item.magnitude_count).to.be.at.most(item.earthquake_count);",
+                  "",
+                  "        pm.expect(typeof item.magnitude_sum).to.eql(\"number\");",
+                  "",
+                  "        pm.expect(",
+                  "            item.average_magnitude === null ||",
+                  "            typeof item.average_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.max_magnitude === null ||",
+                  "            typeof item.max_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.magnitude_distribution).to.be.an(\"object\");",
+                  "        pm.expect(Array.isArray(item.magnitude_distribution)).to.eql(false);",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Metrics - Time Range and Ascending Sort",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics?start_time={{startTime}}&end_time={{endTime}}&sort=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "start_time",
+                  "value": "{{startTime}}"
+                },
+                {
+                  "key": "end_time",
+                  "value": "{{endTime}}"
+                },
+                {
+                  "key": "sort",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Lists metrics inside the configured time range ordered by window_start ascending. Expected response: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Metric item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"window_start\",",
+                  "            \"window_end\",",
+                  "            \"earthquake_count\",",
+                  "            \"magnitude_count\",",
+                  "            \"magnitude_sum\",",
+                  "            \"average_magnitude\",",
+                  "            \"max_magnitude\",",
+                  "            \"magnitude_distribution\",",
+                  "            \"updated_at\"",
+                  "        );",
+                  "",
+                  "        pm.expect(Number.isNaN(Date.parse(item.window_start))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.window_end))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.updated_at))).to.eql(false);",
+                  "",
+                  "        pm.expect(Number.isInteger(item.earthquake_count)).to.eql(true);",
+                  "        pm.expect(item.earthquake_count).to.be.at.least(0);",
+                  "        pm.expect(Number.isInteger(item.magnitude_count)).to.eql(true);",
+                  "        pm.expect(item.magnitude_count).to.be.at.least(0);",
+                  "        pm.expect(item.magnitude_count).to.be.at.most(item.earthquake_count);",
+                  "",
+                  "        pm.expect(typeof item.magnitude_sum).to.eql(\"number\");",
+                  "",
+                  "        pm.expect(",
+                  "            item.average_magnitude === null ||",
+                  "            typeof item.average_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.max_magnitude === null ||",
+                  "            typeof item.max_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.magnitude_distribution).to.be.an(\"object\");",
+                  "        pm.expect(Array.isArray(item.magnitude_distribution)).to.eql(false);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Items are within the configured time range\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const start = Date.parse(pm.collectionVariables.get(\"startTime\"));",
+                  "    const end = Date.parse(pm.collectionVariables.get(\"endTime\"));",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        const t = Date.parse(item.window_start);",
+                  "        pm.expect(t).to.be.at.least(start);",
+                  "        pm.expect(t).to.be.at.most(end);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Items are ordered ascending by window_start\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    if (json.items.length >= 2) {",
+                  "        for (var i = 1; i < json.items.length; i++) {",
+                  "            pm.expect(Date.parse(json.items[i].window_start))",
+                  "                .to.be.at.least(Date.parse(json.items[i - 1].window_start));",
+                  "        }",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Reports",
+      "description": "Listing, pagination and filtering for GET /reports.",
+      "item": [
+        {
+          "name": "List Reports - Defaults",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            },
+            "description": "Lists stored hourly reports using default pagination and descending sort. Expected response: HTTP 200 with the paginated report contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Default pagination values are correct\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.page).to.eql(1);",
+                  "    pm.expect(json.page_size).to.eql(20);",
+                  "});",
+                  "",
+                  "pm.test(\"Report item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"report_date\",",
+                  "            \"period_start\",",
+                  "            \"period_end\",",
+                  "            \"total_events\",",
+                  "            \"events_with_magnitude\",",
+                  "            \"average_magnitude\",",
+                  "            \"max_magnitude\",",
+                  "            \"top_locations\",",
+                  "            \"generated_at\"",
+                  "        );",
+                  "",
+                  "        pm.expect(Number.isNaN(Date.parse(item.report_date))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.period_start))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.period_end))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.generated_at))).to.eql(false);",
+                  "",
+                  "        pm.expect(Number.isInteger(item.total_events)).to.eql(true);",
+                  "        pm.expect(item.total_events).to.be.at.least(0);",
+                  "        pm.expect(Number.isInteger(item.events_with_magnitude)).to.eql(true);",
+                  "        pm.expect(item.events_with_magnitude).to.be.at.least(0);",
+                  "        pm.expect(item.events_with_magnitude).to.be.at.most(item.total_events);",
+                  "",
+                  "        pm.expect(",
+                  "            item.average_magnitude === null ||",
+                  "            typeof item.average_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.max_magnitude === null ||",
+                  "            typeof item.max_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.top_locations).to.be.an(\"array\");",
+                  "",
+                  "        item.top_locations.forEach(function (loc) {",
+                  "            pm.expect(loc).to.have.all.keys(\"location\", \"count\");",
+                  "            pm.expect(loc.location).to.be.a(\"string\");",
+                  "            pm.expect(loc.location.length).to.be.above(0);",
+                  "            pm.expect(Number.isInteger(loc.count)).to.eql(true);",
+                  "            pm.expect(loc.count).to.be.at.least(0);",
+                  "        });",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Reports - Pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports?page={{page}}&page_size={{pageSize}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}"
+                },
+                {
+                  "key": "page_size",
+                  "value": "{{pageSize}}"
+                }
+              ]
+            },
+            "description": "Lists reports using the page and pageSize collection variables. Expected response: HTTP 200 with matching pagination metadata."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Pagination metadata matches collection variables\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.page).to.eql(Number(pm.collectionVariables.get(\"page\")));",
+                  "    pm.expect(json.page_size).to.eql(Number(pm.collectionVariables.get(\"pageSize\")));",
+                  "});",
+                  "",
+                  "pm.test(\"Report item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"report_date\",",
+                  "            \"period_start\",",
+                  "            \"period_end\",",
+                  "            \"total_events\",",
+                  "            \"events_with_magnitude\",",
+                  "            \"average_magnitude\",",
+                  "            \"max_magnitude\",",
+                  "            \"top_locations\",",
+                  "            \"generated_at\"",
+                  "        );",
+                  "",
+                  "        pm.expect(Number.isNaN(Date.parse(item.report_date))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.period_start))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.period_end))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.generated_at))).to.eql(false);",
+                  "",
+                  "        pm.expect(Number.isInteger(item.total_events)).to.eql(true);",
+                  "        pm.expect(item.total_events).to.be.at.least(0);",
+                  "        pm.expect(Number.isInteger(item.events_with_magnitude)).to.eql(true);",
+                  "        pm.expect(item.events_with_magnitude).to.be.at.least(0);",
+                  "        pm.expect(item.events_with_magnitude).to.be.at.most(item.total_events);",
+                  "",
+                  "        pm.expect(",
+                  "            item.average_magnitude === null ||",
+                  "            typeof item.average_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.max_magnitude === null ||",
+                  "            typeof item.max_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.top_locations).to.be.an(\"array\");",
+                  "",
+                  "        item.top_locations.forEach(function (loc) {",
+                  "            pm.expect(loc).to.have.all.keys(\"location\", \"count\");",
+                  "            pm.expect(loc.location).to.be.a(\"string\");",
+                  "            pm.expect(loc.location.length).to.be.above(0);",
+                  "            pm.expect(Number.isInteger(loc.count)).to.eql(true);",
+                  "            pm.expect(loc.count).to.be.at.least(0);",
+                  "        });",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Reports - Time Range and Ascending Sort",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports?start_time={{startTime}}&end_time={{endTime}}&sort=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "start_time",
+                  "value": "{{startTime}}"
+                },
+                {
+                  "key": "end_time",
+                  "value": "{{endTime}}"
+                },
+                {
+                  "key": "sort",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Lists reports inside the configured time range ordered by report_date ascending. Expected response: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Paginated response contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        \"items\",",
+                  "        \"page\",",
+                  "        \"page_size\",",
+                  "        \"total\",",
+                  "        \"total_pages\"",
+                  "    );",
+                  "",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(Number.isInteger(json.page)).to.eql(true);",
+                  "    pm.expect(json.page).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.page_size)).to.eql(true);",
+                  "    pm.expect(json.page_size).to.be.at.least(1);",
+                  "    pm.expect(Number.isInteger(json.total)).to.eql(true);",
+                  "    pm.expect(json.total).to.be.at.least(0);",
+                  "    pm.expect(Number.isInteger(json.total_pages)).to.eql(true);",
+                  "    pm.expect(json.total_pages).to.be.at.least(0);",
+                  "    pm.expect(json.items.length).to.be.at.most(json.page_size);",
+                  "});",
+                  "",
+                  "pm.test(\"Report item contract is valid\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        pm.expect(item).to.be.an(\"object\");",
+                  "        pm.expect(item).to.have.all.keys(",
+                  "            \"report_date\",",
+                  "            \"period_start\",",
+                  "            \"period_end\",",
+                  "            \"total_events\",",
+                  "            \"events_with_magnitude\",",
+                  "            \"average_magnitude\",",
+                  "            \"max_magnitude\",",
+                  "            \"top_locations\",",
+                  "            \"generated_at\"",
+                  "        );",
+                  "",
+                  "        pm.expect(Number.isNaN(Date.parse(item.report_date))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.period_start))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.period_end))).to.eql(false);",
+                  "        pm.expect(Number.isNaN(Date.parse(item.generated_at))).to.eql(false);",
+                  "",
+                  "        pm.expect(Number.isInteger(item.total_events)).to.eql(true);",
+                  "        pm.expect(item.total_events).to.be.at.least(0);",
+                  "        pm.expect(Number.isInteger(item.events_with_magnitude)).to.eql(true);",
+                  "        pm.expect(item.events_with_magnitude).to.be.at.least(0);",
+                  "        pm.expect(item.events_with_magnitude).to.be.at.most(item.total_events);",
+                  "",
+                  "        pm.expect(",
+                  "            item.average_magnitude === null ||",
+                  "            typeof item.average_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(",
+                  "            item.max_magnitude === null ||",
+                  "            typeof item.max_magnitude === \"number\"",
+                  "        ).to.eql(true);",
+                  "",
+                  "        pm.expect(item.top_locations).to.be.an(\"array\");",
+                  "",
+                  "        item.top_locations.forEach(function (loc) {",
+                  "            pm.expect(loc).to.have.all.keys(\"location\", \"count\");",
+                  "            pm.expect(loc.location).to.be.a(\"string\");",
+                  "            pm.expect(loc.location.length).to.be.above(0);",
+                  "            pm.expect(Number.isInteger(loc.count)).to.eql(true);",
+                  "            pm.expect(loc.count).to.be.at.least(0);",
+                  "        });",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Items are within the configured time range\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const start = Date.parse(pm.collectionVariables.get(\"startTime\"));",
+                  "    const end = Date.parse(pm.collectionVariables.get(\"endTime\"));",
+                  "",
+                  "    json.items.forEach(function (item) {",
+                  "        const t = Date.parse(item.report_date);",
+                  "        pm.expect(t).to.be.at.least(start);",
+                  "        pm.expect(t).to.be.at.most(end);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Items are ordered ascending by report_date\", function () {",
+                  "    const json = pm.response.json();",
+                  "",
+                  "    if (json.items.length >= 2) {",
+                  "        for (var i = 1; i < json.items.length; i++) {",
+                  "            pm.expect(Date.parse(json.items[i].report_date))",
+                  "                .to.be.at.least(Date.parse(json.items[i - 1].report_date));",
+                  "        }",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Validation Errors",
+      "description": "Requests that must return HTTP 422 due to invalid parameters.",
+      "item": [
+        {
+          "name": "Invalid Page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?page=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Sends page=0 to verify that invalid page values are rejected. Expected response: HTTP 422 with a validation detail for page."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error location contains page\", function () {",
+                  "    pm.expect(locationContains(\"page\")).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions minimum value of 1\", function () {",
+                  "    pm.expect(serialized).to.include(\"1\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Page Size Above Maximum",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?page_size=101",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "page_size",
+                  "value": "101"
+                }
+              ]
+            },
+            "description": "Sends page_size=101 to verify the maximum page size validation. Expected response: HTTP 422 with a validation detail for page_size."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error location contains page_size\", function () {",
+                  "    pm.expect(locationContains(\"page_size\")).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions maximum value of 100\", function () {",
+                  "    pm.expect(serialized).to.include(\"100\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Invalid Sort",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics?sort=invalid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "invalid"
+                }
+              ]
+            },
+            "description": "Sends an unsupported sort value to verify enum validation. Expected response: HTTP 422 mentioning the accepted asc or desc values."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error location contains sort\", function () {",
+                  "    pm.expect(locationContains(\"sort\")).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions accepted sort values\", function () {",
+                  "    pm.expect(serialized.includes(\"asc\") || serialized.includes(\"desc\")).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Datetime Without Timezone",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports?start_time=2026-07-23T10:00:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "start_time",
+                  "value": "2026-07-23T10:00:00"
+                }
+              ]
+            },
+            "description": "Sends start_time without timezone information. Expected response: HTTP 422 with a timezone validation detail."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error location contains start_time\", function () {",
+                  "    pm.expect(locationContains(\"start_time\")).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions timezone\", function () {",
+                  "    pm.expect(serialized).to.include(\"timezone\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Inverted Time Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports?start_time=2026-07-23T11:00:00Z&end_time=2026-07-23T10:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "start_time",
+                  "value": "2026-07-23T11:00:00Z"
+                },
+                {
+                  "key": "end_time",
+                  "value": "2026-07-23T10:00:00Z"
+                }
+              ]
+            },
+            "description": "Sends start_time greater than end_time. Expected response: HTTP 422 with a time-range validation detail."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions start_time and end_time\", function () {",
+                  "    pm.expect(serialized).to.include(\"start_time\");",
+                  "    pm.expect(serialized).to.include(\"end_time\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Inverted Magnitude Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?min_magnitude=5&max_magnitude=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "min_magnitude",
+                  "value": "5"
+                },
+                {
+                  "key": "max_magnitude",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Sends min_magnitude greater than max_magnitude. Expected response: HTTP 422 with a magnitude-range validation detail."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions min_magnitude and max_magnitude\", function () {",
+                  "    pm.expect(serialized).to.include(\"min_magnitude\");",
+                  "    pm.expect(serialized).to.include(\"max_magnitude\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Unknown Query Parameter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/earthquakes?unknown=value",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earthquakes"
+              ],
+              "query": [
+                {
+                  "key": "unknown",
+                  "value": "value"
+                }
+              ]
+            },
+            "description": "Sends an unsupported query parameter. Expected response: HTTP 422 indicating that extra query inputs are forbidden."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "    const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "    pm.expect(contentType.toLowerCase()).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const details = json.detail;",
+                  "const serialized = JSON.stringify(details).toLowerCase();",
+                  "",
+                  "function locationContains(value) {",
+                  "    return details.some(function (error) {",
+                  "        return Array.isArray(error.loc) &&",
+                  "            error.loc.map(String).some(function (part) {",
+                  "                return part.toLowerCase() === value.toLowerCase();",
+                  "            });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.test(\"Validation error contract is valid\", function () {",
+                  "    pm.expect(json).to.be.an(\"object\");",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "    pm.expect(json.detail).to.be.an(\"array\");",
+                  "    pm.expect(json.detail.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Error location contains unknown parameter\", function () {",
+                  "    pm.expect(locationContains(\"unknown\")).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Error indicates extra inputs are forbidden\", function () {",
+                  "    const hasForbidden = details.some(function (err) {",
+                  "        return err.type === \"extra_forbidden\";",
+                  "    });",
+                  "    const mentionsForbid = serialized.includes(\"extra\") ||",
+                  "        serialized.includes(\"forbidden\") ||",
+                  "        serialized.includes(\"forbid\") ||",
+                  "        serialized.includes(\"not permitted\");",
+                  "    pm.expect(hasForbidden || mentionsForbid).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}
