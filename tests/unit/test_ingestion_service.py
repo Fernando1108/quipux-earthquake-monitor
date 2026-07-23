@@ -118,7 +118,7 @@ def test_metrics_service_still_exported():
 def test_all_three_names_in_dunder_all():
     import app.services as mod
 
-    assert set(mod.__all__) == {"IngestionResult", "IngestionService", "MetricsService"}
+    assert set(mod.__all__) == {"IngestionResult", "IngestionService", "MetricsService", "ReportingService"}
 
 
 def test_injected_client_preserved():
