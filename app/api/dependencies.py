@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.database.mongodb import get_database
 from app.repositories.earthquake_repository import EarthquakeRepository
 from app.repositories.metric_repository import MetricRepository
+from app.repositories.report_repository import ReportRepository
 
 
 def get_db() -> AsyncIOMotorDatabase:
@@ -39,3 +40,13 @@ def get_metric_repository(
 ) -> MetricRepository:
     """Return a MetricRepository bound to the active database."""
     return MetricRepository(database=database)
+
+
+def get_report_repository(
+    database: Annotated[
+        AsyncIOMotorDatabase,
+        Depends(get_db),
+    ],
+) -> ReportRepository:
+    """Return a ReportRepository bound to the active database."""
+    return ReportRepository(database=database)

@@ -5,10 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_db, get_earthquake_repository, get_metric_repository
+from app.api.dependencies import get_db, get_earthquake_repository, get_metric_repository, get_report_repository
 from app.api.main import app
 from app.repositories.earthquake_repository import EarthquakeRepository
 from app.repositories.metric_repository import MetricRepository
+from app.repositories.report_repository import ReportRepository
 
 
 # ---------------------------------------------------------------------------
@@ -191,3 +192,56 @@ def test_get_db_override_propagates_to_metric_repository():
 
     assert response.status_code == 200
     mock_db.__getitem__.assert_called_with("metrics")
+
+
+# ---------------------------------------------------------------------------
+# E. get_report_repository
+# ---------------------------------------------------------------------------
+
+
+def test_get_report_repository_returns_report_repository_instance():
+    mock_db = MagicMock()
+    repo = get_report_repository(database=mock_db)
+    assert isinstance(repo, ReportRepository)
+
+
+def test_get_report_repository_passes_injected_db_to_constructor():
+    mock_db = MagicMock()
+    repo = get_report_repository(database=mock_db)
+    assert repo._collection == mock_db["hourly_reports"]
+
+
+def test_get_report_repository_does_not_call_get_db_internally():
+    """Repository dependency must use injected database, not call get_db manually."""
+    mock_db = MagicMock()
+    with patch("app.api.dependencies.get_database") as mock_fn:
+        get_report_repository(database=mock_db)
+    mock_fn.assert_not_called()
+
+
+def test_get_db_override_propagates_to_report_repository():
+    """Override get_db only; the reports route must use the overridden database."""
+    mock_db = MagicMock()
+    mock_collection = AsyncMock()
+    mock_collection.count_documents = AsyncMock(return_value=0)
+    mock_cursor = MagicMock()
+    mock_cursor.sort = MagicMock(return_value=mock_cursor)
+    mock_cursor.skip = MagicMock(return_value=mock_cursor)
+    mock_cursor.limit = MagicMock(return_value=mock_cursor)
+    mock_cursor.to_list = AsyncMock(return_value=[])
+    mock_collection.find = MagicMock(return_value=mock_cursor)
+    mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+
+    with (
+        patch("app.api.main.connect_to_mongodb", new_callable=AsyncMock),
+        patch("app.api.main.get_database", return_value=MagicMock()),
+        patch("app.api.main.create_indexes", new_callable=AsyncMock),
+        patch("app.api.main.close_mongodb_connection"),
+    ):
+        app.dependency_overrides[get_db] = lambda: mock_db
+        with TestClient(app) as client:
+            response = client.get("/reports")
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    mock_db.__getitem__.assert_called_with("hourly_reports")

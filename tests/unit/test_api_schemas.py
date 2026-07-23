@@ -12,6 +12,7 @@ from app.api.schemas import (
     BaseListQueryParams,
     EarthquakeQueryParams,
     MetricQueryParams,
+    ReportQueryParams,
     PaginatedResponse,
     SortOrder,
     build_paginated_response,
@@ -563,3 +564,38 @@ def test_builder_partial_division():
 def test_builder_propagates_validation_error(kwargs):
     with pytest.raises(ValidationError):
         build_paginated_response(items=[], **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# H. ReportQueryParams
+# ---------------------------------------------------------------------------
+
+
+def test_report_query_params_default_construction():
+    params = ReportQueryParams()
+    assert params.page == 1
+    assert params.page_size == DEFAULT_PAGE_SIZE
+    assert params.sort is SortOrder.DESC
+    assert params.start_time is None
+    assert params.end_time is None
+
+
+def test_report_query_params_inherits_pagination():
+    params = ReportQueryParams(page=3, page_size=5)
+    assert params.page == 3
+    assert params.page_size == 5
+
+
+def test_report_query_params_naive_datetime_rejected():
+    with pytest.raises(ValidationError):
+        ReportQueryParams(start_time=datetime(2024, 6, 1, 12, 0, 0))
+
+
+def test_report_query_params_start_after_end_rejected():
+    with pytest.raises(ValidationError):
+        ReportQueryParams(start_time=LATER_TIME, end_time=FIXED_TIME)
+
+
+def test_report_query_params_rejects_min_magnitude():
+    with pytest.raises(ValidationError):
+        ReportQueryParams(min_magnitude=2.5)  # type: ignore[call-arg]

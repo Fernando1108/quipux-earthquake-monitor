@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.api.routes.earthquakes import router as earthquakes_router
 from app.api.routes.health import router as health_router
 from app.api.routes.metrics import router as metrics_router
+from app.api.routes.reports import router as reports_router
 from app.config.logging import configure_logging
 from app.config.settings import Settings
 from app.database.indexes import create_indexes
@@ -36,6 +37,7 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.include_router(health_router)
 app.include_router(earthquakes_router)
 app.include_router(metrics_router)
+app.include_router(reports_router)
 
 
 @app.get("/")

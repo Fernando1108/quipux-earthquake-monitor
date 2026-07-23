@@ -144,6 +144,15 @@ class MetricQueryParams(BaseListQueryParams):
 
 
 # ---------------------------------------------------------------------------
+# Report query model
+# ---------------------------------------------------------------------------
+
+
+class ReportQueryParams(BaseListQueryParams):
+    """Query parameters for GET /reports."""
+
+
+# ---------------------------------------------------------------------------
 # Generic paginated response
 # ---------------------------------------------------------------------------
 
@@ -246,6 +255,7 @@ __all__ = [
     "BaseListQueryParams",
     "EarthquakeQueryParams",
     "MetricQueryParams",
+    "ReportQueryParams",
     "PaginatedResponse",
     "build_paginated_response",
 ]
