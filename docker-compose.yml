@@ -1,4 +1,53 @@
+# ---------------------------------------------------------------------------
+# Airflow common environment — referenced by all Airflow services via anchor
+# ---------------------------------------------------------------------------
+x-airflow-common-env: &airflow-common-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+  AIRFLOW__CORE__PARALLELISM: "1"
+  AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "1"
+  AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: "1"
+  AIRFLOW__SCHEDULER__CREATE_CRON_DATA_INTERVALS: "true"
+  AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+  AIRFLOW__DAG_PROCESSOR__PARSING_PROCESSES: "1"
+  AIRFLOW__API__WORKERS: "1"
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: "utc"
+  PYTHONPATH: /opt/airflow
+
+# ---------------------------------------------------------------------------
+# Airflow common service configuration
+# ---------------------------------------------------------------------------
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  image: quipux-earthquake-monitor-airflow:3.3.0
+  user: "${AIRFLOW_UID:-50000}:0"
+  environment:
+    <<: *airflow-common-env
+  env_file:
+    - path: .env.example
+      required: true
+    - path: .env
+      required: false
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags:ro
+    - ./app:/opt/airflow/app:ro
+    - airflow_logs:/opt/airflow/logs
+  networks:
+    - quipux_network
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
 services:
+
+  # --------------------------------------------------------------------------
+  # Application services (unchanged)
+  # --------------------------------------------------------------------------
+
   mongodb:
     image: mongo:7
     container_name: quipux-mongodb
@@ -53,8 +102,148 @@ services:
       - quipux_network
     restart: unless-stopped
 
+  # --------------------------------------------------------------------------
+  # Airflow metadata database
+  # --------------------------------------------------------------------------
+
+  airflow-postgres:
+    image: postgres:16
+    container_name: quipux-airflow-postgres
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+    networks:
+      - quipux_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Airflow one-shot initialisation
+  # --------------------------------------------------------------------------
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: quipux-airflow-init
+    command: version
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # --------------------------------------------------------------------------
+  # Airflow API server (Airflow 3 REST API + execution API)
+  # --------------------------------------------------------------------------
+
+  airflow-api-server:
+    <<: *airflow-common
+    container_name: quipux-airflow-api-server
+    command: api-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # Airflow scheduler (runs tasks via LocalExecutor)
+  # --------------------------------------------------------------------------
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: quipux-airflow-scheduler
+    command: scheduler
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+      airflow-api-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # Airflow standalone DAG processor
+  # --------------------------------------------------------------------------
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: quipux-airflow-dag-processor
+    command: dag-processor
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "DagProcessorJob", "--local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # Debug utility — only runs when profile "debug" is activated
+  # --------------------------------------------------------------------------
+
+  airflow-cli:
+    <<: *airflow-common
+    container_name: quipux-airflow-cli
+    entrypoint: ""
+    profiles:
+      - debug
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./app:/opt/airflow/app:ro
+      - airflow_logs:/opt/airflow/logs
+      - ./tests:/opt/airflow/tests:ro
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
 volumes:
   mongo_data:
+  airflow_postgres_data:
+  airflow_logs:
 
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
 networks:
   quipux_network:

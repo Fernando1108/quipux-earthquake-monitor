@@ -1,0 +1,12 @@
+FROM apache/airflow:3.3.0-python3.12
+
+COPY --chown=airflow:root requirements-airflow.txt /requirements-airflow.txt
+
+RUN pip install --no-cache-dir \
+    "apache-airflow==3.3.0" \
+    -r /requirements-airflow.txt
+
+COPY --chown=airflow:root app /opt/airflow/app
+COPY --chown=airflow:root airflow/dags /opt/airflow/dags
+
+ENV PYTHONPATH=/opt/airflow
