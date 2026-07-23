@@ -17,11 +17,35 @@ services:
 
   api:
     build: .
+    image: quipux-earthquake-monitor-app:latest
     container_name: quipux-api
     env_file:
-      - .env
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
     ports:
       - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - quipux_network
+    restart: unless-stopped
+
+  ingestion-worker:
+    build: .
+    image: quipux-earthquake-monitor-app:latest
+    container_name: quipux-ingestion-worker
+    command:
+      - python
+      - -m
+      - app.workers.ingestion_worker
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
     depends_on:
       mongodb:
         condition: service_healthy

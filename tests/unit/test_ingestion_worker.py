@@ -4,6 +4,8 @@ import asyncio
 import inspect
 import logging
 import runpy
+import subprocess
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -795,3 +797,84 @@ def test_startup_log_includes_interval(caplog):
             run(worker.run_forever())
     info_records = [r for r in caplog.records if r.levelname == "INFO"]
     assert any(str(INTERVAL) in r.message for r in info_records)
+
+
+# ---------------------------------------------------------------------------
+# G. Package-level lazy import (PEP 562)
+# ---------------------------------------------------------------------------
+
+
+def test_package_import_is_lazy():
+    """Importing app.workers must NOT load app.workers.ingestion_worker."""
+    script = """
+import sys
+import app.workers
+assert "app.workers.ingestion_worker" not in sys.modules
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+
+
+def test_public_export_still_works():
+    """Accessing IngestionWorker via app.workers triggers lazy load."""
+    script = """
+import sys
+import app.workers
+
+assert "app.workers.ingestion_worker" not in sys.modules
+
+from app.workers import IngestionWorker
+from app.workers.ingestion_worker import IngestionWorker as DirectIngestionWorker
+
+assert IngestionWorker is DirectIngestionWorker
+assert "app.workers.ingestion_worker" in sys.modules
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+
+
+def test_unknown_attribute_raises_attribute_error():
+    """Accessing an undefined name on app.workers raises AttributeError."""
+    import app.workers as mod
+
+    with pytest.raises(AttributeError):
+        _ = mod.NonExistentAttribute
+
+
+def test_module_execution_has_no_runpy_runtimewarning():
+    """Running app.workers.ingestion_worker as __main__ must not raise RuntimeWarning."""
+    script = """
+import runpy
+from unittest.mock import patch
+
+def fake_run(coroutine):
+    coroutine.close()
+
+with patch("asyncio.run", side_effect=fake_run) as mocked_run:
+    runpy.run_module(
+        "app.workers.ingestion_worker",
+        run_name="__main__",
+    )
+
+assert mocked_run.call_count == 1
+"""
+    result = subprocess.run(
+        [sys.executable, "-W", "error::RuntimeWarning", "-c", script],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
