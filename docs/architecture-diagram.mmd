@@ -1,0 +1,65 @@
+flowchart LR
+
+    classDef external fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef appNode  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef airNode  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef initNode fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    classDef dagNode  fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef dbNode   fill:#f8fafc,stroke:#475569,color:#0f172a
+
+    %% Actores externos
+    USGS["USGS Earthquake API<br/>Feed GeoJSON all_hour"]
+    CONSUMER["API Consumer / Postman<br/>Clientes HTTP"]
+    OPERATOR["Operator / Airflow UI"]
+
+    subgraph DC["Docker Compose — Quipux Earthquake Monitor"]
+
+        subgraph APP["Aplicación"]
+            WORKER["ingestion-worker<br/>IngestionWorker · USGSClient<br/>IngestionService · MetricsService<br/>Repositories · Cada 180 segundos"]
+            API["api<br/>FastAPI + Uvicorn · Pydantic<br/>Routes · Repositories<br/>Solo lectura sobre MongoDB"]
+        end
+
+        subgraph AIRFLOWG["Apache Airflow"]
+            AF_INIT["airflow-init<br/>Inicialización one-shot"]
+            AF_API_SVR["airflow-api-server<br/>UI / API · Puerto 8080"]
+            AF_SCH["airflow-scheduler<br/>Planificación y ejecución"]
+            AF_DAG_P["airflow-dag-processor<br/>Carga y procesamiento de DAGs"]
+            HR_DAG(["hourly_report_dag<br/>ReportingService · ReportRepository<br/>Cron: 0 * * * * UTC<br/>Reporte horario"])
+        end
+
+        subgraph PERSIST["Persistencia"]
+            MONGO[("mongodb<br/>MongoDB 7<br/>earthquakes · metrics · hourly_reports<br/>Driver: puerto 27017 — no es interfaz web")]
+            PG[("airflow-postgres<br/>PostgreSQL 16<br/>Solo metadatos de Airflow<br/>No almacena datos sísmicos")]
+        end
+
+    end
+
+    %% Flujo de ingesta
+    USGS     -->|"HTTPS · GeoJSON all_hour · Cada 180 segundos"| WORKER
+    WORKER   -->|"insert_if_new · event_id único<br/>Deduplicación · metrics incremental"| MONGO
+
+    %% Flujo de consultas API
+    CONSUMER -->|"HTTP · Puerto 8000<br/>GET / · GET /health · GET /earthquakes<br/>GET /metrics · GET /reports"| API
+    API      -->|"Consultas solo lectura<br/>Repositories · Respuestas paginadas"| MONGO
+
+    %% Flujo de reportes horarios
+    AF_DAG_P -.->|"Carga y procesamiento del DAG"| AF_SCH
+    AF_SCH   -.->|"Ejecución cada hora UTC"| HR_DAG
+    HR_DAG   -->|"Lee earthquakes · Calcula reporte<br/>Upsert en hourly_reports · ReportingService"| MONGO
+
+    %% Interfaz Airflow
+    OPERATOR -->|"HTTP · Puerto 8080 · UI/API"| AF_API_SVR
+
+    %% Metadatos de Airflow
+    AF_INIT    -.->|"Inicializa metadatos"| PG
+    AF_API_SVR -.->|"Metadatos de Airflow"| PG
+    AF_SCH     -.->|"Metadatos de Airflow"| PG
+    AF_DAG_P   -.->|"Metadatos de Airflow"| PG
+
+    %% Estilos
+    class USGS,CONSUMER,OPERATOR external
+    class WORKER,API appNode
+    class AF_INIT initNode
+    class AF_API_SVR,AF_SCH,AF_DAG_P airNode
+    class HR_DAG dagNode
+    class MONGO,PG dbNode

@@ -17,20 +17,10 @@ Sistema de monitoreo sísmico que ingesta eventos del feed público de USGS, cal
 
 ## Arquitectura resumida
 
-```
-USGS Feed
-    │
-    ▼
-ingestion-worker ──► earthquakes ──► metrics
-                                         │
-                                    (MongoDB)
-                                         │
-airflow-scheduler ──► hourly_report_dag ─┘──► hourly_reports
-                                                    │
-                                               api (FastAPI)
-                                                    │
-                                              HTTP :8000
-```
+![Diagrama de arquitectura de Quipux Earthquake Monitor](docs/architecture-diagram.svg)
+
+- [Documentación detallada de arquitectura](docs/architecture.md)
+- [Fuente editable Mermaid](docs/architecture-diagram.mmd)
 
 - **ingestion-worker**: proceso independiente que consulta USGS y persiste en MongoDB.
 - **Airflow**: orquesta la tarea `generate_hourly_report` cada hora en punto (UTC).
@@ -526,7 +516,9 @@ quipux-earthquake-monitor/
 │   └── unit/
 │       └── (pruebas unitarias de todos los módulos)
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   ├── architecture-diagram.mmd
+│   └── architecture-diagram.svg
 ├── docker-compose.yml
 ├── Dockerfile
 ├── postman/
@@ -684,4 +676,3 @@ docker compose exec -T airflow-api-server sh -lc 'cat "$AIRFLOW_HOME/simple_auth
 - **LocalExecutor**: suficiente para un DAG horario, pero no escala a múltiples workers Airflow. Migrar a CeleryExecutor o KubernetesExecutor si se agregan más DAGs concurrentes.
 - **Sin TLS**: las comunicaciones entre contenedores no usan HTTPS. En producción se debe terminar TLS en un reverse proxy.
 - **Retención de datos**: no existe política de expiración para colecciones de MongoDB. Implementar TTL indexes si el volumen de datos lo requiere.
-- **Diagrama de arquitectura visual**: pendiente como entregable futuro. El documento `docs/architecture.md` cubre la arquitectura en formato textual.

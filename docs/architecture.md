@@ -2,6 +2,16 @@
 
 ---
 
+## Diagrama visual
+
+![Diagrama de arquitectura de Quipux Earthquake Monitor](architecture-diagram.svg)
+
+[Ver fuente Mermaid](architecture-diagram.mmd)
+
+Las líneas continuas representan flujo de datos. Las líneas discontinuas representan orquestación o metadatos de infraestructura. MongoDB almacena los datos de dominio (earthquakes, metrics, hourly_reports). PostgreSQL almacena exclusivamente los metadatos de Airflow. La API, el worker de ingesta y Airflow son procesos independientes que comparten el mismo repositorio y la misma red Docker.
+
+---
+
 ## 1. Objetivo de la arquitectura
 
 Proporcionar un sistema de monitoreo sísmico que:
@@ -315,4 +325,3 @@ El diseño actual está orientado a un entorno de desarrollo local con un solo n
 | Sin política de retención       | Las colecciones crecen indefinidamente. Sin TTL indexes configurados.|
 | Worker de ingesta de proceso único | Un solo proceso de ingesta; no hay particionado ni distribución.  |
 | PostgreSQL solo para Airflow    | Subutilización si se quisieran agregar más servicios con RDBMS.      |
-| Diagrama de arquitectura visual | Pendiente como entregable futuro. El documento actual es textual.    |
